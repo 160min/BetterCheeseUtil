@@ -23,7 +23,7 @@
 
 기본 `pip install PyQt6`로 설치되는 라이브러리는 H.264, AAC 코덱을 지원하지 않습니다.
 영상후원 오버레이에서 치지직 클립을 재생하려면, 기본 PyQt6 라이브러리 대신 **Proprietary Codecs (H.264, AAC 등)** 가 포함된 PyQt6를 직접 컴파일해야 합니다.
-영상후원 오버레이를 사용하지 않을 경우 이 단계는 스킵해도 무방합니다.
+영도 리모컨 및 영상후원 오버레이를 사용하지 않을 경우 이 단계는 스킵해도 무방합니다.
 
 *   **다음 가이드를 참고하세요**: [StackOverflow - Building Qt6 with proprietary codecs](https://stackoverflow.com/questions/79831860/building-qt6-with-proprietary-codecs-for-qtwebengine)
 *   **권장 버전**: **Qt 6.9**
