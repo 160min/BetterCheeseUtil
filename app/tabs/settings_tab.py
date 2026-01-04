@@ -293,8 +293,13 @@ class SettingsTab(QWidget):
         self.chzzk_video_ui_toggle = QToggle("영도 재생바 표시")
         video_donation_layout.addWidget(self.chzzk_video_ui_toggle)
 
+        self.chzzk_overlay_hide_taskbar = QToggle("영도 오버레이 작업표시줄에서 숨기기")
+        self.chzzk_overlay_hide_taskbar.setChecked(True)  # 기본값: 켜짐(숨기기)
+        video_donation_layout.addWidget(self.chzzk_overlay_hide_taskbar)
+        self.chzzk_overlay_hide_taskbar.clicked.connect(self.main_window.video_donation_tab.update_taskbar_visibility)
+
         alignment_layout = QHBoxLayout()
-        self.overlay_alignment_label = QLabel('세로 모드 정렬:', self)
+        self.overlay_alignment_label = QLabel('쇼츠 모드 정렬:', self)
         alignment_layout.addWidget(self.overlay_alignment_label)
         self.overlay_alignment_combobox = QComboBox(self)
         self.overlay_alignment_combobox.addItems(["가운데", "왼쪽", "오른쪽"])

@@ -1,6 +1,12 @@
 from PyInstaller.utils.hooks import collect_submodules
 
-hidden_imports = collect_submodules('eventlet') + ['greenlet']
+hidden_imports = collect_submodules('eventlet') + [
+    'greenlet',
+    'app.overlay',
+    'app.overlay.ipc_protocol',
+    'app.overlay.overlay_process',
+    'app.overlay.overlay_client',
+]
 
 excluded_modules = ['PyQt5', 'PySide6']
 
@@ -57,7 +63,7 @@ datas = [
     ('./app/resources/img/cheese_30000.gif', './resources/img'),
     ('./app/resources/img/cheese_200000.gif', './resources/img'),
     ('./app/resources/img/cheese_500000.gif', './resources/img'),
-    ('./app/resources/img/cheese_1000000.gif', './resources/img')
+    ('./app/resources/img/cheese_1000000.gif', './resources/img'),
 ]
 
 a = Analysis(

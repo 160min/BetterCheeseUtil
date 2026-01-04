@@ -82,7 +82,7 @@ class PreviewCanvas(QWidget):
             painter.setPen(QColor("#888"))
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "오버레이가 보이지 않습니다.")
 
-from PyQt6.QtGui import QPainter, QColor, QIcon, QPixmap
+from PyQt6.QtGui import QPainter, QColor, QIcon, QPixmap, QKeyEvent
 
 class OverlayPreviewWindow(QWidget):
     def __init__(self, overlay_instance, parent=None):
@@ -142,6 +142,7 @@ class OverlayPreviewWindow(QWidget):
         self.skip_button.setIcon(QIcon(resource_path(r'.\resources\icon\skip-white.png')))
         self.skip_button.setMinimumWidth(80)
         self.skip_button.setStyleSheet(button_style)
+        self.skip_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.skip_button.clicked.connect(lambda: self.video_donation_tab.video_control('end'))
         buttons_layout.addWidget(self.skip_button, 0, 0)
 
@@ -149,6 +150,7 @@ class OverlayPreviewWindow(QWidget):
         self.pause_button.setIcon(QIcon(resource_path(r'.\resources\icon\playpause-white.png')))
         self.pause_button.setMinimumWidth(80)
         self.pause_button.setStyleSheet(button_style)
+        self.pause_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.pause_button.clicked.connect(lambda: self.video_donation_tab.video_control('space'))
         buttons_layout.addWidget(self.pause_button, 0, 1)
 
@@ -156,6 +158,7 @@ class OverlayPreviewWindow(QWidget):
         self.home_button.setIcon(QIcon(resource_path(r'.\resources\icon\rewind-white.png')))
         self.home_button.setMinimumWidth(80)
         self.home_button.setStyleSheet(button_style)
+        self.home_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.home_button.clicked.connect(lambda: self.video_donation_tab.video_control('home'))
         buttons_layout.addWidget(self.home_button, 0, 2)
 
@@ -164,6 +167,7 @@ class OverlayPreviewWindow(QWidget):
         self.reserve_button.setIcon(QIcon(resource_path(r'.\resources\icon\pause-white.png')))
         self.reserve_button.setMinimumWidth(80)
         self.reserve_button.setStyleSheet(button_style)
+        self.reserve_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.reserve_button.clicked.connect(lambda: self.video_donation_tab.toggle_reserve_video(self.reserve_button.isChecked()))
 
         if self.video_donation_tab.main_window.remote_tab.toggle_reserve_pause_video_button.isChecked():
@@ -175,6 +179,7 @@ class OverlayPreviewWindow(QWidget):
         self.rotate_button = QPushButton(" 화면 회전", self)
         self.rotate_button.setMinimumWidth(80)
         self.rotate_button.setStyleSheet(button_style)
+        self.rotate_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.rotate_button.clicked.connect(lambda: self.video_donation_tab.rotate_overlay())
         buttons_layout.addWidget(self.rotate_button, 1, 1)
 
@@ -182,6 +187,7 @@ class OverlayPreviewWindow(QWidget):
         self.refresh_button.setIcon(QIcon(resource_path(r'.\resources\icon\refresh-white.png')))
         self.refresh_button.setMinimumWidth(80)
         self.refresh_button.setStyleSheet(button_style)
+        self.refresh_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.refresh_button.clicked.connect(lambda: self.video_donation_tab.refresh_page())
         buttons_layout.addWidget(self.refresh_button, 1, 2)
 
@@ -227,6 +233,23 @@ class OverlayPreviewWindow(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.capture_overlay)
         self.timer.start(16)
+    
+    def keyPressEvent(self, event: QKeyEvent):
+        """Handle keyboard shortcuts"""
+        if event.key() == Qt.Key.Key_Space:
+            # Spacebar -> Play/Pause
+            self.video_donation_tab.video_control('space')
+            event.accept()
+        elif event.key() == Qt.Key.Key_End:
+            # End -> Skip
+            self.video_donation_tab.video_control('end')
+            event.accept()
+        elif event.key() == Qt.Key.Key_Home:
+            # Home -> Rewind
+            self.video_donation_tab.video_control('home')
+            event.accept()
+        else:
+            super().keyPressEvent(event)
 
     def update_reserve_state(self, checked):
         """외부에서 정지 예약 상태 변경 시 호출"""
@@ -261,6 +284,10 @@ class OverlayPreviewWindow(QWidget):
 
         try:
             pixmap = self.overlay.grab()
+            
+            if pixmap is None or pixmap.isNull():
+                self.canvas.set_pixmap(None)
+                return
             
             if hasattr(self.overlay, 'is_portrait') and self.overlay.is_portrait:
                 alignment = getattr(self.overlay, 'alignment', 'center')

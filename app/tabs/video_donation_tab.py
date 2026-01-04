@@ -8,8 +8,8 @@ import win32con
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                              QLabel, QCheckBox, 
                              QSpinBox, QMessageBox, QApplication, QTextEdit, QSlider)
-from PyQt6.QtGui import QFont, QIcon, QKeyEvent, QMouseEvent
-from PyQt6.QtCore import Qt, QTimer, QEvent, QPoint, QPointF, QUrl
+from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtCore import Qt, QTimer
 
 from app.constants import GLOBALFONTSIZE
 from app.ui_widgets import QToggle
@@ -19,7 +19,7 @@ from datetime import datetime
 from playsound import playsound
 from app.ui_widgets import QToggle
 from app.resources import resource_path
-from app.ui_dialogs import ChzzkOverlay
+from app.overlay.overlay_client import OverlayClient
 from app.ui_preview import OverlayPreviewWindow
 from datetime import datetime
 from playsound import playsound
@@ -279,18 +279,46 @@ class VideoDonationTab(QWidget):
             if self.main_window.chzzk_video_url.text() == "":
                 QMessageBox.warning(self, "경고", "치지직 영도 URL이 설정되지 않았습니다.")
                 return
-            self.overlay = ChzzkOverlay(self)
-            self.overlay.closed.connect(self.on_overlay_closed) # 닫힘 시그널 연결
-            self.overlay.show() # off-screen으로 이동됨
+            url = self.main_window.settings_tab.chzzk_video_url.text().strip().replace(" ","")
+            is_ui = self.main_window.settings_tab.chzzk_video_ui_toggle.isChecked()
+            alignment = getattr(self.main_window, 'overlay_alignment', 'center')
+            
+            self.overlay = OverlayClient(self)
+            self.overlay.closed.connect(self.on_overlay_closed)
+            self.overlay.video_started.connect(self.on_video_started)
+            self.overlay.resolution_detected.connect(self.on_resolution_detected)
+            self.overlay.video_started.connect(self.on_video_started)
+            self.overlay.resolution_detected.connect(self.on_resolution_detected)
+            self.overlay.ready.connect(self.on_overlay_ready)
+            self.overlay.start(url, is_ui, alignment)
+
+    def on_overlay_ready(self):
+        """Called when overlay IPC is ready"""
+        # OBS capture workaround: Delay hiding from taskbar by 1 second
+        QTimer.singleShot(1000, self.update_taskbar_visibility)
+        
+    def update_taskbar_visibility(self):
+        """Update overlay taskbar visibility based on settings"""
+        if self.overlay and self.overlay.isVisible():
+            should_hide = self.main_window.settings_tab.chzzk_overlay_hide_taskbar.isChecked()
+            # If should_hide is True, visible is False
+            self.overlay.set_taskbar_visible(not should_hide)
 
     def open_overlay(self):
         if self.overlay is None:
             if self.main_window.chzzk_video_url.text() == "":
                 QMessageBox.warning(self, "경고", "치지직 영도 URL이 설정되지 않았습니다.")
                 return
-            self.overlay = ChzzkOverlay(self)
-            self.overlay.closed.connect(self.on_overlay_closed) # 닫힘 시그널 연결
-            self.overlay.show() # off-screen으로 이동됨
+            url = self.main_window.settings_tab.chzzk_video_url.text().strip().replace(" ","")
+            is_ui = self.main_window.settings_tab.chzzk_video_ui_toggle.isChecked()
+            alignment = getattr(self.main_window, 'overlay_alignment', 'center')
+            
+            self.overlay = OverlayClient(self)
+            self.overlay.closed.connect(self.on_overlay_closed)
+            self.overlay.video_started.connect(self.on_video_started)
+            self.overlay.resolution_detected.connect(self.on_resolution_detected)
+            self.overlay.ready.connect(self.on_overlay_ready)
+            self.overlay.start(url, is_ui, alignment)
             
             # 미리보기 창 동시 실행
             self.preview_window = OverlayPreviewWindow(self.overlay, self)
@@ -335,16 +363,68 @@ class VideoDonationTab(QWidget):
     
     def refresh_page(self):
         if self.overlay is not None:
-            self.overlay.refresh_page()
+            url = self.main_window.settings_tab.chzzk_video_url.text().strip().replace(" ","")
+            is_ui = self.main_window.settings_tab.chzzk_video_ui_toggle.isChecked()
+            self.overlay.refresh_page(url, is_ui)
+    
+    def on_video_started(self, url: str):
+        """영상 시작 시 호출되어 영상 타입을 확인하고 방향을 자동 전환합니다."""
+        if self.main_window.remote_tab.toggle_reserve_pause_video_button.text() == "정지 예약 해제":
+            QTimer.singleShot(1500, lambda: self.main_window.remote_tab.control_pause_button.click())
+            QTimer.singleShot(1500, lambda: self.main_window.remote_tab.toggle_reserve_pause_video_button.click())
+        if not self.toggle_button_auto_detect_shorts.isChecked():
+            return
+        try:
+            if "embed/" in url:
+                video_id = url.split("embed/")[1].split("?")[0]
+            else:
+                return
+
+            self.overlay.set_volume(self.video_volume_slider.value())
+            print(f"[Overlay] Video Started: {video_id}")
+
+            if "youtube.com" not in url and "youtu.be" not in url:
+                print("[Overlay] Not a YouTube video, skipping YouTube-specific orientation logic.")
+                return
+
+            if hasattr(self.main_window, 'remote_tab'):
+                remote_tab = self.main_window.remote_tab
+                if hasattr(remote_tab, 'get_youtube_video_type'):
+                    video_type = remote_tab.get_youtube_video_type(video_id)
+                    print(f"[Overlay] Detected Video Type: {video_type}")
+                    if video_type == "shorts":
+                        if not self.overlay.is_portrait:
+                            print("[Overlay] Switching to Portrait Mode (Auto)")
+                            self.overlay.set_orientation(True)
+                    elif video_type == "normal":
+                        if self.overlay.is_portrait:
+                            print("[Overlay] Switching to Landscape Mode (Auto)")
+                            self.overlay.set_orientation(False)
+        except Exception as e:
+            print(f"[Overlay] Auto-Orientation Error: {e}")
+            try:
+                if self.overlay.is_portrait:
+                    print("[Overlay] Switching to Landscape Mode (Chzzk Video?)")
+                    self.overlay.set_orientation(False)
+            except Exception as e:
+                print(f"[Overlay] Auto-Orientation Error: {e}")
+    
+    def on_resolution_detected(self, res_type: str):
+        """JS에서 감지된 해상도 타입(portrait/landscape)에 따라 회전"""
+        print(f"[Overlay] Resolution Detected: {res_type}")
+        target_portrait = (res_type == "portrait")
+        if self.overlay:
+            self.overlay.set_orientation(target_portrait)
 
     def toggle_overlay_position(self):
+        """Toggle overlay between visible (0,0) and hidden (off-screen) positions"""
         if self.overlay is None:
             QMessageBox.information(self, "알림", "오버레이가 실행 중이지 않습니다.")
             return
 
         current_pos = self.overlay.pos()
         if current_pos.x() == 0 and current_pos.y() == 0:
-            # 현재 (0,0)에 있으면 -> 숨김 위치(화면 끝)로 이동
+            # Currently at (0,0) -> move to hidden position (off-screen)
             max_x = 0
             for screen in QApplication.screens():
                 geo = screen.geometry()
@@ -354,11 +434,9 @@ class VideoDonationTab(QWidget):
             self.overlay.move(max_x, 0)
             self.rescue_overlay_button.setText("오버레이 표시 토글 (숨김)")
         else:
-            # 숨겨져 있으면 -> (0,0)으로 이동
+            # Hidden -> move to (0,0)
             self.overlay.move(0, 0)
             self.rescue_overlay_button.setText("오버레이 표시 토글 (보임)")
-        
-        self.overlay.activateWindow()
 
 
     ##### 타이머 함수 (이 탭 전용) #####
@@ -587,60 +665,27 @@ class VideoDonationTab(QWidget):
         print(f"Video Control Action: {action}")
         
         if action == 'end':
+            # Skip 버튼 클릭 + End 키 전송
             self.overlay.simulate_skip()
-            qt_key = Qt.Key.Key_End
+            self.overlay.simulate_key('end')
         elif action == 'home':
-            qt_key = Qt.Key.Key_Home
+            # 맨 앞으로 - Home 키 전송
+            self.overlay.simulate_key('home')
         elif action == 'space':
-            qt_key = None
-        else:
-            return
-
-        # 1. 윈도우 활성화 (OS 레벨 포커스)
-        self.overlay.raise_()
-        self.overlay.activateWindow()
-
-        # 2. 브라우저 위젯 포커스
-        target_widget = self.overlay.browser.focusProxy()
-        if not target_widget:
-            target_widget = self.overlay.browser
-        target_widget.setFocus()
-        
-        # 3. 강제 클릭 이벤트 (영상 내부 좌표 클릭으로 iframe 포커스 확보)
-        # 기본값 (가로 모드/중앙)
-        click_x = float(target_widget.width()) / 2
-        click_y = float(target_widget.height()) / 4 # 상단 1/4 지점 (영상 위치)
-
-        # 세로 모드일 경우 정렬에 따라 X 좌표 보정
-        if hasattr(self.overlay, 'is_portrait') and self.overlay.is_portrait:
-            # 영상 너비 576px의 중앙 = 288px
-            video_center_offset = 288
-            alignment = getattr(self.overlay, 'alignment', 'center')
-            
-            if alignment == 'left':
-                click_x = video_center_offset
-            elif alignment == 'right':
-                click_x = 704 + video_center_offset # 992
-            else: # center
-                click_x = 352 + video_center_offset # 640
-
-        click_pos = QPointF(click_x, click_y)
-        
-        mouse_press = QMouseEvent(QEvent.Type.MouseButtonPress, click_pos, 
-                                  Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier)
-        mouse_release = QMouseEvent(QEvent.Type.MouseButtonRelease, click_pos, 
-                                    Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier)
-        
-        QApplication.postEvent(target_widget, mouse_press)
-        QApplication.postEvent(target_widget, mouse_release)
-
-        # 4. 키 이벤트 전송 (클릭 후 포커스가 넘어갈 시간 확보 위해 지연 전송)
-        def send_key():
-            QApplication.postEvent(target_widget, QKeyEvent(QEvent.Type.KeyPress, qt_key, Qt.KeyboardModifier.NoModifier))
-            QApplication.postEvent(target_widget, QKeyEvent(QEvent.Type.KeyRelease, qt_key, Qt.KeyboardModifier.NoModifier))
-            print(f"Sent Key: {qt_key}")
-
-        if action != "space": QTimer.singleShot(100, send_key)
+            # 재생/정지 - 영상 중앙 클릭
+            if hasattr(self.overlay, 'is_portrait') and self.overlay.is_portrait:
+                alignment = getattr(self.overlay, 'alignment', 'center')
+                if alignment == 'left':
+                    click_x = 288
+                elif alignment == 'right':
+                    click_x = 992
+                else:
+                    click_x = 640
+                click_y = 512
+            else:
+                click_x = 640
+                click_y = 360
+            self.overlay.simulate_click(click_x, click_y)
 
     def video_volume_control(self, volume):
         if self.overlay:
