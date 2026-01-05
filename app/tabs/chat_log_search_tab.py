@@ -911,6 +911,8 @@ class ChatLogSearchTab(QWidget):
      
     def chat_moa(self):
         try:
+            if str(self.main_window.picked_user_nick) == "" and self.search_button_chat_moa.text() == "채팅 모아보기":
+                return # 추첨 중이 아니고 채팅 모아보기 중이 아님 -> 스킵
             self.result_vote_temp = []
             self.result_vote_temp_donation = []
             result_pick_chat = []

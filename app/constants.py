@@ -1,8 +1,8 @@
 import os
 from datetime import datetime
 
-VERSION = "9.2.8"
-BUILDNUMBER = "20260106.0"
+VERSION = "9.2.9"
+BUILDNUMBER = "20260106.1"
 GLOBALFONTSIZE = 12
 F = "\x0c"
 ESC = "\x1b\t"

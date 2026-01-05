@@ -1073,7 +1073,7 @@ class BetterCheeseUtil(QMainWindow):
         self.overlay_disable_gpu = QToggle()
         self.overlay_disable_gpu.setChecked(settings.value('overlay_disable_gpu', False, type=bool))
         self.overlay_separate_process = QToggle()
-        self.overlay_separate_process.setChecked(settings.value('overlay_separate_process', True, type=bool))
+        self.overlay_separate_process.setChecked(settings.value('overlay_separate_process', False, type=bool))
         self.userProfileUrl = settings.value('userProfileUrl', type=str)
         self.remember_window_check.setChecked(settings.value('remember_window_check', True, type=bool))
         self.remember_chat_popup_check.setChecked(settings.value('remember_chat_popup_check', True, type=bool))

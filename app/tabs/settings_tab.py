@@ -303,7 +303,7 @@ class SettingsTab(QWidget):
         video_donation_layout.addWidget(self.overlay_disable_gpu)
 
         self.overlay_separate_process = QToggle("영도 오버레이 별도 프로세스로 실행 (오버레이 리셋하여 적용)")
-        self.overlay_separate_process.setChecked(True)  # 기본값: 켜짐 (별도 프로세스)
+        self.overlay_separate_process.setChecked(False)  # 기본값: 꺼짐
         video_donation_layout.addWidget(self.overlay_separate_process)
 
         alignment_layout = QHBoxLayout()

@@ -720,11 +720,11 @@ class Chatroom_Connector(QObject):
             path = os.path.dirname(log_file_path)
             current_date = datetime.now().strftime("%Y-%m-%d")
             if current_date not in os.path.basename(log_file_path) or self.streamer_ID not in os.path.basename(log_file_path):
-                 base_log_name = f"{current_date}_#{self.streamer_ID}.log"
-                 new_log_file_path = os.path.join(path, base_log_name)
-                 self.log_file_path = new_log_file_path
-                 #self.append_result_chat.emit(f"📅 날짜/ID 변경, 새 로그 파일: {self.log_file_path}")
-                 log_file_path = self.log_file_path
+                base_log_name = f"{current_date}_#{self.streamer_ID}.log"
+                new_log_file_path = os.path.join(path, base_log_name)
+                self.log_file_path = new_log_file_path
+                #self.append_result_chat.emit(f"📅 날짜/ID 변경, 새 로그 파일: {self.log_file_path}")
+                log_file_path = self.log_file_path
 
             os.makedirs(path, exist_ok=True)
             with open(log_file_path, "a", encoding="UTF8") as file: file.write(chat_string + "\n")
